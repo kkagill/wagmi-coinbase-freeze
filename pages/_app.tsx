@@ -1,44 +1,42 @@
 import "../styles/globals.css";
-import type { AppProps } from "next/app";
-import { Provider, chain, defaultChains } from "wagmi";
-import { InjectedConnector } from "wagmi/connectors/injected";
-import { WalletConnectConnector } from "wagmi/connectors/walletConnect";
-import { WalletLinkConnector } from "wagmi/connectors/walletLink";
+import { AppProps } from 'next/app';
+import '@rainbow-me/rainbowkit/styles.css';
+import { getDefaultWallets, RainbowKitProvider } from '@rainbow-me/rainbowkit';
+import { chain, configureChains, createClient, WagmiConfig } from 'wagmi';
+import { alchemyProvider } from 'wagmi/providers/alchemy';
+import { publicProvider } from 'wagmi/providers/public';
 
-const infuraId = process.env.NEXT_PUBLIC_INFURA_ID;
-
-const chains = defaultChains;
-
-type Connector =
-  | InjectedConnector
-  | WalletConnectConnector
-  | WalletLinkConnector;
-
-const connectors = ({ chainId }: { chainId?: number }): Connector[] => {
-  const rpcUrl =
-    chains.find((x) => x.id === chainId)?.rpcUrls?.[0] ??
-    chain.mainnet.rpcUrls[0];
-  return [
-    new InjectedConnector({ chains }),
-    new WalletConnectConnector({
-      options: {
-        infuraId,
-        qrcode: true,
-      },
+const { chains, provider, webSocketProvider } = configureChains([chain.mainnet],
+  [
+    alchemyProvider({
+      apiKey: process.env[''], // alchemy api key
     }),
-    new WalletLinkConnector({
-      options: {
-        appName: "NextJS-wagmi",
-        jsonRpcUrl: `${rpcUrl}/${infuraId}`,
-      },
-    }),
-  ];
+    publicProvider(),
+  ]
+);
+
+const { connectors } = getDefaultWallets({
+  appName: 'test',
+  chains,
+});
+
+const wagmiClient = createClient({
+  autoConnect: true,
+  connectors,
+  provider,
+  webSocketProvider,
+});
+
+const App = ({ Component, pageProps }: AppProps) => {
+  return (
+    <>
+      <WagmiConfig client={wagmiClient}>
+        <RainbowKitProvider chains={chains}>
+          <Component {...pageProps} />
+        </RainbowKitProvider>
+      </WagmiConfig>
+    </>
+  );
 };
 
-export default function MyApp({ Component, pageProps }: AppProps) {
-  return (
-    <Provider autoConnect connectors={connectors}>
-      <Component {...pageProps} />
-    </Provider>
-  );
-}
+export default App;
